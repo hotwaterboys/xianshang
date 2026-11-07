@@ -30,7 +30,7 @@
   --accent:#5DC3A3; --accent-ink:#06231A; --accent-soft:#1D3A31; --stage:#0B0F0E; --warn:#E5806C; color-scheme:dark}
 html,body{height:100%}
 body{background:var(--bg);color:var(--ink);font-family:var(--ui);font-size:15px;line-height:1.55;-webkit-tap-highlight-color:transparent}
-button,input,select{font:inherit;color:inherit}
+button,input,select,textarea{font:inherit;color:inherit;box-sizing:border-box}
 button{cursor:pointer;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 14px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px;touch-action:manipulation}
 button:hover{border-color:var(--muted)}
 button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -264,6 +264,11 @@ input[type=range]{accent-color:var(--accent);width:130px}
 .beatbar i.on{background:var(--accent)}
 .code{width:100%;min-height:70px;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px;font-family:var(--num);font-size:12px;resize:vertical}
 @media (max-width:820px),(orientation:portrait){.nowcard,.nextcard{grid-auto-flow:column;align-items:center;gap:8px;padding:4px 10px}.nowcard svg{width:70px;height:86px}.nextcard svg{width:56px;height:69px}}
+.panel{-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y}
+.panel>*{flex:none}
+.panel-head.sticky{position:sticky;top:calc(-16px - env(safe-area-inset-top,0px));z-index:5;background:var(--surface);margin:-8px 0 0;padding:8px 0;border-bottom:1px solid var(--line)}
+.panel-head.sticky h2{flex:1;text-align:center;font-size:19px}
+.crop input{touch-action:pan-y pinch-zoom}
 .toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;z-index:60;max-width:calc(100% - 32px);text-align:center}
 .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -370,7 +375,7 @@ input[type=range]{accent-color:var(--accent);width:130px}
 <div class="sheet" id="sh-editor" hidden>
   <div class="scrim" data-close></div>
   <div class="panel wide" role="dialog" aria-labelledby="edH">
-    <div class="panel-head"><h2 id="edH">导入新谱</h2><button class="ghost" data-close>取消</button></div>
+    <div class="panel-head sticky"><button class="ghost" data-close>取消</button><h2 id="edH">导入新谱</h2><button class="primary" id="edSaveTop">保存</button></div>
     <div class="row2">
       <label class="field"><span>歌名</span><input id="edTitle" placeholder="比如：斑马斑马"></label>
       <label class="field"><span>歌手（可不填）</span><input id="edArtist"></label>
@@ -1098,7 +1103,7 @@ function openEditor(song){
   $('#edTitle').value=song?.title||'';$('#edArtist').value=song?.artist||'';$('#edCapo').value=song?.capo||0;
   $('#edKey').value=song&&song.key!=null?String(song.key):'';
   $('#edTidy').checked=song?song.tidy!==false:true;
-  $('#edDel').hidden=!song;$('#edConfirm').hidden=true;$('#edMsg').textContent='';$('#edSave').disabled=false;
+  $('#edDel').hidden=!song;$('#edConfirm').hidden=true;$('#edMsg').textContent='';$('#edSave').disabled=false;$('#edSaveTop').disabled=false;$('#edSaveTop').textContent='保存';
   $('#edChords').value=(song?.chords||[]).join(' ');renderCPrev();
   $('#edAutoRow').hidden=!sampleApi;$('#edAuto').disabled=false;$('#edAutoChart').hidden=!sampleApi;$('#edAutoChart').disabled=false;
   $('#edCode').value=song&&song.chart?chartToCode(song.chart):'';$('#edLib').value='';$('#edCodeMsg').textContent=song&&song.chart?chartSummary(song.chart):'';
@@ -1207,9 +1212,9 @@ drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over'
 document.addEventListener('paste',e=>{if($('#sh-editor').hidden)return;const fs=Array.from(e.clipboardData?.items||[]).filter(i=>i.kind==='file').map(i=>i.getAsFile());if(fs.length){e.preventDefault();addFiles(fs)}});
 $('#edSave').addEventListener('click',async()=>{
   let chart=null;const code=$('#edCode').value.trim();
-  if(code){try{chart=parseChart(code)}catch(e){$('#edMsg').textContent='谱子代码格式不对，先改好或清空再保存。';return}}
-  if(!ed.items.length&&!chart){$('#edMsg').textContent='还没有选图片，先点「选择图片」。';return}
-  const btn=$('#edSave');btn.disabled=true;const msg=$('#edMsg');
+  if(code){try{chart=parseChart(code)}catch(e){$('#edMsg').textContent='谱子代码格式不对，先改好或清空再保存。';toast('谱子代码格式不对');return}}
+  if(!ed.items.length&&!chart){$('#edMsg').textContent='还没有选图片，先点「选择图片」。';toast('还没有选图片');return}
+  const btn=$('#edSave');btn.disabled=true;const msg=$('#edMsg');const top=$('#edSaveTop');top.disabled=true;top.textContent='保存中…';
   try{
     const tidy=$('#edTidy').checked;
     const origIds=[];
@@ -1242,8 +1247,9 @@ $('#edSave').addEventListener('click',async()=>{
     const note=(chart?'，已排成和弦谱':tidy?(dups?`，整理时去掉了 ${dups} 处截图重复`:'，谱面已整理'):'')+stripNote;
     if(!$('#player').hidden)openPlayer(song);
     toast('已保存「'+song.title+'」'+note);
-  }catch(e){msg.textContent='保存失败：设备存储空间可能不够了，或有图片读不出来。删掉几首不用的谱再试。';btn.disabled=false}
+  }catch(e){msg.textContent='保存失败：设备存储空间可能不够了，或有图片读不出来。删掉几首不用的谱再试。';btn.disabled=false;top.disabled=false;top.textContent='保存';toast('保存失败，往下看原因');}
 });
+$('#edSaveTop').addEventListener('click',()=>$('#edSave').click());
 $('#edDel').addEventListener('click',()=>{$('#edConfirm').hidden=false});
 $('#edDelNo').addEventListener('click',()=>{$('#edConfirm').hidden=true});
 $('#edDelYes').addEventListener('click',async()=>{
