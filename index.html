@@ -232,6 +232,38 @@ input[type=range]{accent-color:var(--accent);width:130px}
 .guide{position:sticky;top:30%;height:0;z-index:2;pointer-events:none;border-top:2px solid color-mix(in srgb,var(--accent) 45%,transparent);margin-bottom:-2px}
 .stage:not(.guided) .guide{display:none}
 @media (max-width:700px){.keysum{grid-template-columns:1fr}.row3{grid-template-columns:1fr}}
+.chart{width:var(--page-w,92%);max-width:100%;margin:0 auto;padding-block:14px;display:grid;gap:18px}
+.cline{display:grid;gap:6px;scroll-margin-top:20px}
+.csec{font-family:var(--display);font-weight:700;font-size:15px;color:var(--accent);letter-spacing:.1em}
+.cbars{display:grid;gap:6px}
+.cbar{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 6px 6px;min-height:96px;display:flex;justify-content:space-around;align-items:flex-end;gap:2px;cursor:pointer;transition:background .15s,border-color .15s}
+.cbar.now{background:var(--accent-soft);border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}
+.cbar.played{opacity:.55}
+.cc{display:grid;justify-items:center;gap:0;min-width:0}
+.cc svg{width:46px;height:57px}
+.cc svg .g{stroke:var(--muted)}.cc svg .nut{stroke:var(--ink)}.cc svg .dot{fill:var(--ink)}.cc svg text{fill:var(--muted);font-size:11px}.cc svg .mk{fill:none;stroke:var(--muted);stroke-width:1.4}
+.cc b{font-size:17px;line-height:1.2;white-space:nowrap}
+.cc.on b{color:var(--accent)}
+.cfill{align-self:center;color:var(--muted);font-size:13px;letter-spacing:.1em}
+.rep{position:absolute;top:4px;font-family:var(--num);font-weight:700;color:var(--accent);font-size:14px}
+.rep.o{left:6px}.rep.c{right:6px}
+.endg{position:absolute;top:2px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--warn);border-top:2px solid var(--warn);padding:0 10px}
+.cstrip{width:100%;display:block;border-radius:6px;background:#fff;border:1px solid var(--line)}
+.player.invert .cstrip{filter:invert(.92) hue-rotate(180deg)}
+.nowcard{display:grid;justify-items:center;gap:0;padding:10px 4px;border-radius:12px;background:var(--accent-soft);border:1px solid var(--accent)}
+.nowcard span,.nextcard span{font-size:12px;color:var(--muted)}
+.nowcard svg{width:104px;height:128px}
+.nowcard b{font-size:26px;line-height:1.1}
+.nextcard{display:grid;justify-items:center;gap:0;padding:8px 4px;border-radius:12px;border:1px dashed var(--line)}
+.nextcard svg{width:76px;height:94px}
+.nextcard b{font-size:18px}
+.nowcard svg .g,.nextcard svg .g{stroke:var(--muted)}.nowcard svg .nut,.nextcard svg .nut{stroke:var(--ink)}.nowcard svg .dot,.nextcard svg .dot{fill:var(--ink)}
+.nowcard svg text,.nextcard svg text{fill:var(--muted);font-size:11px}.nowcard svg .mk,.nextcard svg .mk{fill:none;stroke:var(--muted);stroke-width:1.4}
+.beatbar{display:flex;gap:4px;justify-content:center}
+.beatbar i{width:10px;height:10px;border-radius:50%;background:var(--line)}
+.beatbar i.on{background:var(--accent)}
+.code{width:100%;min-height:70px;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px;font-family:var(--num);font-size:12px;resize:vertical}
+@media (max-width:820px),(orientation:portrait){.nowcard,.nextcard{grid-auto-flow:column;align-items:center;gap:8px;padding:4px 10px}.nowcard svg{width:70px;height:86px}.nextcard svg{width:56px;height:69px}}
 .toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;z-index:60;max-width:calc(100% - 32px);text-align:center}
 .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -284,6 +316,7 @@ input[type=range]{accent-color:var(--accent);width:130px}
     <div class="stage" id="stage">
       <div class="guide" aria-hidden="true"></div>
       <div class="pages" id="pages"></div>
+      <div class="chart" id="chart" hidden></div>
       <div class="end">— 谱子结束 —</div>
     </div>
   </div>
@@ -322,6 +355,7 @@ input[type=range]{accent-color:var(--accent);width:130px}
     <div class="grp"><span class="lbl">速度</span><button id="sDown" aria-label="慢一点">−</button><output id="sVal">5</output><button id="sUp" aria-label="快一点">＋</button></div>
     <label class="grp" style="padding-right:10px"><span class="lbl">谱宽</span><input id="wRange" type="range" min="35" max="100" step="5" aria-label="谱子宽度"></label>
     <button id="bTop">回到开头</button>
+    <button id="bView" hidden>看原图</button>
     <button data-open="key" id="bKey">调 · 变调夹</button>
     <button data-open="metro" id="bMetro"><i class="beat-dot" id="barDot"></i><span id="bMetroTxt">节拍器</span></button>
     <button data-open="tuner">调音</button>
@@ -354,6 +388,11 @@ input[type=range]{accent-color:var(--accent);width:130px}
     <div class="eitems" id="edItems"></div>
     <label class="field"><span>这首歌用到的和弦（看谱时会在旁边显示按法，还能推荐变调夹）</span><input id="edChords" placeholder="比如：C G Am F，用空格隔开" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
     <div class="cpreview" id="edCPrev"></div>
+    <div class="field"><span><b>和弦谱</b>：有了它，app 会把谱子重新排成一格一格的小节，跟着节奏走</span>
+      <div class="btnrow"><select id="edLib" style="flex:1;min-height:44px;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:0 12px"></select><button id="edAutoChart" hidden>让 Claude 识别成和弦谱</button></div>
+      <textarea class="code" id="edCode" placeholder="或者粘贴谱子代码（我发给你的那一段）" spellcheck="false" autocapitalize="off"></textarea>
+      <p class="hint" id="edCodeMsg"></p>
+    </div>
     <div class="chips" id="edQuick"></div>
     <details class="more"><summary>更多和弦</summary><div class="chips" id="edMore"></div></details>
     <div class="btnrow" id="edAutoRow" hidden><button id="edAuto">让 Claude 从谱子图片里认和弦和调</button></div>
@@ -549,8 +588,8 @@ function renderLibrary(){
   if(q)list=list.filter(s=>(s.title+' '+(s.artist||'')).toLowerCase().includes(q));
   for(const s of list){
     const b=document.createElement('button');b.className='card';
-    b.innerHTML=`<div class="thumb"><img alt="">${s.demo?'<span class="tag">示例</span>':''}</div><div class="info"><span class="t">${esc(s.title)}</span><span class="m">${esc(s.artist||'')}${s.artist?' · ':''}${s.images.length} 页 · ${capoText(playCapo(s))}</span>${cardLog(s)}</div>`;
-    imageURL(s.images[0]).then(u=>{if(u)b.querySelector('img').src=u});
+    b.innerHTML=`<div class="thumb"><img alt="">${s.demo?'<span class="tag">示例</span>':''}</div><div class="info"><span class="t">${esc(s.title)}</span><span class="m">${esc(s.artist||'')}${s.artist?' · ':''}${s.chart?'和弦谱':s.images.length+' 页'} · ${capoText(playCapo(s))}</span>${cardLog(s)}</div>`;
+    imageURL((s.images||[])[0]).then(u=>{if(u)b.querySelector('img').src=u});
     b.addEventListener('click',()=>openPlayer(s));
     grid.appendChild(b);
   }
@@ -569,7 +608,11 @@ function openPlayer(s){
   $('#pEdit').hidden=!!s.demo;
   const pages=$('#pages');pages.innerHTML='';
   s.images.forEach((ref,i)=>{const im=document.createElement('img');im.alt='第 '+(i+1)+' 页';im.draggable=false;pages.appendChild(im);imageURL(ref).then(u=>{if(u)im.src=u})});
-  setWidth(s.width||70,false);$('#sVal').textContent=s.speed||5;renderRail();
+  cpos=0;cev=-1;tl=null;
+  $('#bView').hidden=!s.chart;
+  if(s.chart){$('#bView').textContent=chartMode()?'看原图':'看和弦谱';renderChart()}
+  $('#chart').hidden=!chartMode();pages.hidden=chartMode();
+  setWidth(s.width||(chartMode()?92:70),false);renderSpeed();renderRail();
   if(s.bpm)setBpm(s.bpm,false);
   $('#player').hidden=false;document.body.style.overflow='hidden';
   stage.scrollTop=0;pause();$('#done').hidden=true;showReady();
@@ -609,9 +652,9 @@ function finish(){
   $('#dToday').textContent=Math.max(1,todayMin());
   $('#done').hidden=false;
 }
-$('#dAgain').addEventListener('click',()=>{$('#done').hidden=true;stage.scrollTop=0;showReady()});
+$('#dAgain').addEventListener('click',()=>{$('#done').hidden=true;stage.scrollTop=0;cpos=0;cev=-1;if(chartMode())chartUpdate(true);showReady()});
 $('#dBack').addEventListener('click',()=>{$('#done').hidden=true;closePlayer()});
-function atTop(){return stage.scrollTop<8}
+function atTop(){return chartMode()?cpos<0.01:stage.scrollTop<8}
 function startOrToggle(){if(!playing&&atTop())showReady();else toggle()}
 function closePlayer(){clearCount();$('#ready').hidden=true;$('#done').hidden=true;pause();$('#player').hidden=true;document.body.style.overflow='';state.current=null;loadSongs()}
 $('#pBack').addEventListener('click',closePlayer);
@@ -619,17 +662,25 @@ $('#pEdit').addEventListener('click',()=>openEditor(state.current));
 
 let saveT=0;
 function saveCurrentSoon(){const s=state.current;if(!s||s.demo)return;clearTimeout(saveT);saveT=setTimeout(()=>Store.putSong(s).catch(()=>{}),500)}
-function setWidth(v,save=true){$('#pages').style.setProperty('--page-w',v+'%');$('#wRange').value=v;if(state.current){state.current.width=v;if(save)saveCurrentSoon()}}
+function setWidth(v,save=true){stage.style.setProperty('--page-w',v+'%');$('#wRange').value=v;if(state.current){state.current.width=v;if(save)saveCurrentSoon()}}
 $('#wRange').addEventListener('input',e=>setWidth(+e.target.value));
-function setSpeed(v){v=Math.max(1,Math.min(20,v));if(!state.current)return;state.current.speed=v;$('#sVal').textContent=v;saveCurrentSoon()}
-$('#sDown').addEventListener('click',()=>setSpeed((state.current?.speed||5)-1));
-$('#sUp').addEventListener('click',()=>setSpeed((state.current?.speed||5)+1));
+function setSpeed(v){v=Math.max(1,Math.min(20,v));if(!state.current)return;state.current.speed=v;renderSpeed();saveCurrentSoon()}
+function setChartBpm(v){const s=state.current;if(!s)return;v=Math.max(40,Math.min(200,v));if(playing){cbase=cpos;cstart=performance.now()}s.bpm=v;setBpm(v,false);renderSpeed();saveCurrentSoon()}
+function renderSpeed(){const s=state.current;if(!s)return;const c=chartMode();$('#sVal').textContent=c?'♩'+(s.bpm||s.chart.bpm||72):(s.speed||5);$('#sVal').previousElementSibling.previousElementSibling.textContent=c?'速度':'滚动'}
+$('#sDown').addEventListener('click',()=>{if(chartMode())setChartBpm((state.current.bpm||72)-2);else setSpeed((state.current?.speed||5)-1)});
+$('#sUp').addEventListener('click',()=>{if(chartMode())setChartBpm((state.current.bpm||72)+2);else setSpeed((state.current?.speed||5)+1)});
 
 function renderPlayBtn(){$('#bPlay').innerHTML=playing?ICON_PAUSE+'暂停':ICON_PLAY+'播放'}
 function flash(on){const f=$('#flash');f.innerHTML=(on?ICON_PLAY:ICON_PAUSE).replace(/18/g,'38');f.classList.add('show');requestAnimationFrame(()=>requestAnimationFrame(()=>f.classList.remove('show')))}
 async function lockScreen(){try{if('wakeLock' in navigator){wake=await navigator.wakeLock.request('screen');}}catch(e){wake=null}}
 function play(){
   if(playing)return;
+  if(chartMode()){
+    if(!tl)tl=timeline(state.current);if(cpos>=tl.total-0.01)cpos=0;
+    playing=true;last=cstart=performance.now();cbase=cpos;renderPlayBtn();lockScreen();
+    if(ls.get('chartClick',true)&&!metro.on){metroStart();ownMetro=true}
+    raf=requestAnimationFrame(ctick);return;
+  }
   if(stage.scrollTop+stage.clientHeight>=stage.scrollHeight-2)stage.scrollTop=0;
   playing=true;last=performance.now();carry=0;renderPlayBtn();lockScreen();raf=requestAnimationFrame(tick);
 }
@@ -639,7 +690,7 @@ function commitPractice(){
   const log=ls.get('log',{});const k=dayKey();log[k]=(log[k]||0)+sec;ls.set('log',log);
   const s=state.current;if(s&&!s.demo){s.practiceSec=(s.practiceSec||0)+sec;s.lastPlayed=Date.now();saveCurrentSoon()}
 }
-function pause(){commitPractice();playing=false;cancelAnimationFrame(raf);renderPlayBtn();try{wake&&wake.release()}catch(e){}wake=null}
+function pause(){commitPractice();if(ownMetro){ownMetro=false;metroStop()}playing=false;cancelAnimationFrame(raf);renderPlayBtn();try{wake&&wake.release()}catch(e){}wake=null}
 function toggle(){playing?pause():play();flash(playing)}
 function tick(t){
   if(!playing)return;
@@ -654,7 +705,11 @@ function tick(t){
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&playing)lockScreen()});
 $('#bPlay').addEventListener('click',()=>{if(playing)pause();else if(atTop())showReady();else play()});
 $('#bTop').addEventListener('click',()=>{stage.scrollTo({top:0,behavior:'smooth'})});
-stage.addEventListener('click',startOrToggle);
+stage.addEventListener('click',e=>{
+  const bar=chartMode()&&e.target.closest&&e.target.closest('.cbar');
+  if(bar){seekBar(+bar.dataset.li,+bar.dataset.bi);return}
+  startOrToggle();
+});
 stage.addEventListener('pointerdown',()=>{holding=true});
 ['pointerup','pointercancel','pointerleave'].forEach(ev=>stage.addEventListener(ev,()=>{holding=false;carry=0}));
 stage.addEventListener('touchstart',()=>{holding=true},{passive:true});
@@ -665,6 +720,10 @@ let railOn=ls.get('rail',true);
 function renderRail(){
   const r=$('#rail');r.hidden=!railOn;$('#bRail').setAttribute('aria-pressed',String(railOn));
   const s=state.current;if(!s)return;r.innerHTML='';
+  if(chartMode()){
+    r.innerHTML='<div class="nowcard" id="nowCard"></div><div class="nextcard" id="nextCard"></div><div class="beatbar" id="beatBar"></div>';
+    nowShown=null;chartUpdate(true);return;
+  }
   const list=s.chords||[];
   if(!list.length){
     r.innerHTML=`<div class="rail-empty"><span>还没填这首歌的和弦</span>${s.demo?'':'<button id="railAdd">添加和弦</button>'}</div>`;
@@ -682,6 +741,61 @@ function chordTile(n,sheet){
   return b;
 }
 $('#bRail').addEventListener('click',()=>{railOn=!railOn;ls.set('rail',railOn);renderRail()});
+
+/* ---------- chord-chart view: bars laid out by the app, following the beat ---------- */
+let cpos=0,cbase=0,cstart=0,cev=-1,tl=null,ownMetro=false,nowShown=null;
+function chartMode(){const s=state.current;return !!(s&&s.chart&&s.view!=='image')}
+function ccHTML(name,on){const c=findChord(name);return `<div class="cc${on?' on':''}">${c?chordSVG(c.shape):''}<b>${esc(name)}</b></div>`}
+function renderChart(){
+  const s=state.current;const ch=s.chart;const sh=songShift(s);tl=timeline(s);
+  const box=$('#chart');box.innerHTML='';
+  ch.lines.forEach((l,li)=>{
+    const sec=document.createElement('section');sec.className='cline';sec.dataset.li=li;
+    let h=l.sec?`<div class="csec">${esc(l.sec)}</div>`:'';
+    h+=`<div class="cbars" style="grid-template-columns:repeat(${Math.max(4,l.bars.length)},minmax(0,1fr))">`;
+    l.bars.forEach((b,bi)=>{
+      h+=`<div class="cbar" data-li="${li}" data-bi="${bi}">${b.open?'<span class="rep o">‖:</span>':''}${b.close?'<span class="rep c">:‖</span>':''}${b.ending?`<span class="endg">${b.ending}.</span>`:''}`+
+        (b.chords.length?b.chords.map(c=>ccHTML(pressName(c,sh,s.simplify))).join(''):'<span class="cfill">过门 · 延续</span>')+`</div>`;
+    });
+    h+='</div>';
+    if(l.lyric&&s.strips&&s.strips[li])h+=`<img class="cstrip" alt="" data-ref="${esc(s.strips[li])}">`;
+    sec.innerHTML=h;box.appendChild(sec);
+  });
+  box.querySelectorAll('.cstrip').forEach(im=>imageURL(im.dataset.ref).then(u=>{if(u)im.src=u}));
+  cev=-1;chartUpdate(true);
+}
+function evAt(pos){const ev=tl.ev;let i=Math.max(0,cev);if(ev[i]&&ev[i].t>pos)i=0;while(i<ev.length-1&&ev[i+1].t<=pos)i++;return i}
+function chartUpdate(force){
+  const s=state.current;if(!s||!chartMode())return;if(!tl)tl=timeline(s);
+  const i=evAt(cpos);const e=tl.ev[i];if(!e)return;
+  const beatIn=Math.floor(cpos-(Math.floor((cpos)/tl.bpb)*tl.bpb));
+  const bb=$('#beatBar');if(bb){if(bb.children.length!==tl.bpb)bb.innerHTML='<i></i>'.repeat(tl.bpb);[...bb.children].forEach((x,k)=>x.classList.toggle('on',k<=beatIn&&(playing||cpos>0)))}
+  if(i===cev&&!force)return;
+  const prev=tl.ev[cev];cev=i;
+  $$('#chart .cbar.now').forEach(x=>x.classList.remove('now'));
+  const bar=$(`#chart .cbar[data-li="${e.li}"][data-bi="${e.bi}"]`);if(bar)bar.classList.add('now');
+  $$('#chart .cc.on').forEach(x=>x.classList.remove('on'));
+  if(bar&&!e.fill){const lineEv=tl.ev.filter(x=>x.k===e.k);const idx=lineEv.indexOf(e);const ccs=bar.querySelectorAll('.cc');if(ccs[idx])ccs[idx].classList.add('on')}
+  if(bar&&(!prev||prev.li!==e.li||force)&&(playing||force)){const line=bar.closest('.cline');const top=line.offsetTop-stage.clientHeight*0.22;if(force&&!playing)stage.scrollTop=Math.max(0,top);else stage.scrollTo({top:Math.max(0,top),behavior:'smooth'})}
+  // now / next cards
+  let nx=null;for(let j=i+1;j<tl.ev.length;j++){if(tl.ev[j].chord&&tl.ev[j].chord!==e.chord){nx=tl.ev[j];break}}
+  const nc=$('#nowCard'),xc=$('#nextCard');
+  if(nc&&nowShown!==e.chord){nowShown=e.chord;const c=e.chord&&findChord(e.chord);nc.innerHTML=`<span>现在</span>${c?chordSVG(c.shape):''}<b>${esc(e.chord||'—')}</b>`}
+  if(xc){const c=nx&&findChord(nx.chord);xc.innerHTML=nx?`<span>下一个</span>${c?chordSVG(c.shape):''}<b>${esc(nx.chord)}</b>`:'<span>快结束了</span>'}
+}
+function ctick(t){
+  if(!playing)return;const s=state.current;
+  const dt=Math.min(0.1,(t-last)/1000);last=t;sessSec+=dt;
+  cpos=cbase+(t-cstart)/1000*(s.bpm||72)/60;
+  if(cpos>=tl.total){cpos=tl.total;finish();cpos=0;cev=-1;return}
+  chartUpdate(false);raf=requestAnimationFrame(ctick);
+}
+function seekBar(li,bi){
+  if(!tl)return;const cands=tl.ev.filter(e=>e.li===li&&e.bi===bi);if(!cands.length)return;
+  const after=cands.find(e=>e.t>=cpos-0.01)||cands[0];
+  cpos=after.t;cbase=cpos;cstart=performance.now();cev=-1;chartUpdate(true);
+}
+$('#bView').addEventListener('click',()=>{const s=state.current;if(!s||!s.chart)return;pause();s.view=chartMode()?'image':'chart';saveCurrentSoon();openPlayer(s)});
 
 let guide=ls.get('guide',true);
 function applyGuide(){stage.classList.toggle('guided',guide);$('#bGuide').setAttribute('aria-pressed',String(guide))}
@@ -787,7 +901,7 @@ function renderKey(){
     box.appendChild(b);
   });
 }
-function refreshSong(){const s=state.current;if(!s)return;$('#pMeta').textContent=songMeta(s);renderRail();if(!$('#sh-key').hidden)renderKey();if(!$('#ready').hidden&&!countTimers.length)showReady()}
+function refreshSong(){const s=state.current;if(!s)return;$('#pMeta').textContent=songMeta(s);if(chartMode())renderChart();renderRail();if(!$('#sh-key').hidden)renderKey();if(!$('#ready').hidden&&!countTimers.length)showReady()}
 function setPitch(p){const s=state.current;if(!s)return;s.pitch=Math.max(-6,Math.min(6,p));
   // keep the same capo choice only if it stays playable; otherwise pick the easiest
   const r=recommend(s);if(r.length&&!r.some(x=>x.capo===playCapo(s)&&x.score<=r[0].score+0.6))s.playCapo=r[0].capo;
@@ -808,7 +922,7 @@ function autoBox(img){
   const colOk=new Array(w);for(let x=0;x<w;x++){let n=0;for(let y=0;y<h;y++)if(L[y*w+x]>=240)n++;colOk[x]=n/h>0.45}
   let [x0,x1]=largestRun(colOk,w,3);if(x1-x0<w*0.3){x0=0;x1=w-1}
   const rowOk=new Array(h);const span=x1-x0+1;
-  for(let y=0;y<h;y++){let n=0;for(let x=x0;x<=x1;x++)if(L[y*w+x]>=240)n++;rowOk[y]=n/span>0.5}
+  for(let y=0;y<h;y++){let n=0;for(let x=x0;x<=x1;x++)if(L[y*w+x]>=150)n++;rowOk[y]=n/span>0.5}
   let [y0,y1]=largestRun(rowOk,h,8);if(y1-y0<h*0.2){y0=0;y1=h-1}
   let ix0=x1,ix1=x0,iy0=y1,iy1=y0;
   for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)if(L[y*w+x]<150){if(x<ix0)ix0=x;if(x>ix1)ix1=x;if(y<iy0)iy0=y;if(y>iy1)iy1=y}
@@ -816,7 +930,15 @@ function autoBox(img){
   const p=5;ix0=Math.max(x0,ix0-p);ix1=Math.min(x1,ix1+p);iy0=Math.max(y0,iy0-p);iy1=Math.min(y1,iy1+p);
   return{x:ix0/s,y:iy0/s,w:(ix1-ix0+1)/s,h:(iy1-iy0+1)/s};
 }
-function levels(c){const g=c.getContext('2d',{willReadFrequently:true});const id=g.getImageData(0,0,c.width,c.height);const d=id.data;const lo=80,hi=224,k=255/(hi-lo);
+function levels(c){const g=c.getContext('2d',{willReadFrequently:true});const id=g.getImageData(0,0,c.width,c.height);const d=id.data;const W=c.width;
+  // even out greyed or shaded rows: estimate the paper colour per row (brightest pixels, widened over
+  // neighbouring rows so a staff line spanning the page is never mistaken for background), then lift it to white
+  const H=c.height,rb=new Uint8Array(H),hist=new Uint32Array(256);
+  for(let y=0;y<H;y++){hist.fill(0);let n=0;const o=y*W*4;for(let x=0;x<W;x+=3){const i=o+x*4;hist[(d[i]+d[i+1]+d[i+2])/3|0]++;n++}
+    let acc=0,bg=255;for(let v=255;v>=0;v--){acc+=hist[v];if(acc>=n*0.08){bg=v;break}}rb[y]=bg}
+  for(let y=0;y<H;y++){let bg=0;for(let j=Math.max(0,y-18);j<=Math.min(H-1,y+18);j++)if(rb[j]>bg)bg=rb[j];
+    if(bg<120||bg>=248)continue;const f=250/bg,o=y*W*4;for(let x=0;x<W;x++){const i=o+x*4;d[i]=Math.min(255,d[i]*f);d[i+1]=Math.min(255,d[i+1]*f);d[i+2]=Math.min(255,d[i+2]*f)}}
+  const lo=80,hi=224,k=255/(hi-lo);
   for(let i=0;i<d.length;i+=4){for(let j=0;j<3;j++){const v=(d[i+j]-lo)*k;d[i+j]=v<0?0:v>255?255:v}}g.putImageData(id,0,0)}
 function renderPage(img,box,adj,clean,maxW){
   const t=(adj&&adj.t||0)/100,bt=(adj&&adj.b||0)/100;
@@ -831,7 +953,11 @@ function overlapCut(A,B){
   const off=(a.h-k)*sw;let ink=0;for(let i=0;i<k*sw;i++)if(a.L[off+i]<140)ink++;if(ink<k*sw*0.015)return 0;
   const maxY=Math.floor(b.h*0.8)-k;let best=Infinity,by=-1;
   for(let y=0;y<=maxY;y++){let s=0;const bo=y*sw;for(let i=0;i<k*sw;i+=2){s+=Math.abs(a.L[off+i]-b.L[bo+i]);if(s>=best)break}if(s<best){best=s;by=y}}
-  if(by<0||best/(k*sw/2)>9)return 0;return Math.round((by+k)*B.height/b.h);
+  if(by<0||best/(k*sw/2)>9)return 0;
+  // confirm the whole overlapping strip matches, so repeated verses with different lyrics are never dropped
+  const ov=by+k;if(ov>a.h)return 0;let sum=0,n=0;const ao=(a.h-ov)*sw;
+  for(let i=0;i<ov*sw;i+=2){sum+=Math.abs(a.L[ao+i]-b.L[i]);n++}
+  if(sum/n>6)return 0;return Math.round(ov*B.height/b.h);
 }
 function cropTop(c,cut){const o=mkCanvas(c.width,c.height-cut);o.getContext('2d').drawImage(c,0,cut,c.width,c.height-cut,0,0,c.width,c.height-cut);return o}
 function toBlob(c,q=.9){return new Promise(r=>c.toBlob(r,'image/jpeg',q))}
@@ -843,6 +969,110 @@ async function tidyPages(items,onStep){
   for(let i=1;i<pages.length;i++){const cut=overlapCut(out[out.length-1],pages[i]);if(cut>0){dups++;if(pages[i].height-cut<24)continue;out.push(cropTop(pages[i],cut))}else out.push(pages[i])}
   return{pages:out,dups};
 }
+
+/* ---------- chord charts: format, library, layout detection ---------- */
+// Built-in chart library: chord progressions only (no lyrics, no melody).
+const CHART_LIB=[
+ {title:'斑马斑马',artist:'宋冬野',key:'G',capo:0,time:'4/4',bpm:72,lines:[
+  {sec:'前奏',lyric:false,bars:['Cmaj7 D6add9','B7 Em','Cmaj7 D6add9','-']},
+  {sec:'主歌',bars:['|: Cmaj7 D6add9','Bm7 Em','Cmaj7 D6add9','G']},
+  {bars:['Cmaj7 D6add9','Bm7 Em','Cmaj7 D6add9','1. Em :|']},
+  {sec:'间奏',bars:['2. Em','Cmaj7 D6add9','B7 Em','Cmaj7 D6add9','-']},
+  {sec:'主歌',bars:['Cmaj7 D6add9','Bm7 Em','Cmaj7 D6add9','G']},
+  {bars:['Cmaj7 D6add9','Bm7 Em','Cmaj7 D6add9','Em']},
+  {sec:'副歌',bars:['Cmaj7 D6add9','Bm7 Em','Cmaj7 D6add9','G']},
+  {bars:['Cmaj7 D6add9','Bm7 Em','Cmaj7 D6add9','G']},
+  {bars:['Cmaj7 D6add9','Bm7 Em','Cmaj7 D6add9','G']},
+  {bars:['Cmaj7 D6add9','Bm7 Em','Cmaj7 D6add9','G']},
+  {bars:['Cmaj7 D6add9','Bm7 Em','Cmaj7 D6add9','G']},
+  {bars:['Cmaj7 D6add9','Bm7 Em','Cmaj7 D6add9','-','Cmaj7 D6add9']},
+  {sec:'尾奏',lyric:false,bars:['B7 Em','Cmaj7 D6add9','-','Cmaj7 D6add9']},
+  {lyric:false,bars:['B7 Em','Cmaj7 D6add9','Em']}
+ ]}
+];
+function parseBar(str){
+  const b={chords:[],open:false,close:false,ending:0,fill:false};
+  String(str||'').trim().split(/\s+/).filter(Boolean).forEach(t=>{
+    if(t==='|:'||t==='‖:')b.open=true;else if(t===':|'||t===':‖')b.close=true;
+    else if(/^[12]\.$/.test(t))b.ending=+t[0];
+    else if(t==='-'||t==='—'||t==='%')b.fill=true;
+    else b.chords.push(normChord(t));
+  });
+  if(!b.chords.length)b.fill=true;
+  return b;
+}
+function parseChart(obj){
+  if(typeof obj==='string'){const t=obj.trim();if(!t)return null;const m=t.match(/\{[\s\S]*\}/);if(!m)throw new Error('没找到谱子代码');obj=JSON.parse(m[0])}
+  if(!obj||!Array.isArray(obj.lines)||!obj.lines.length)throw new Error('谱子代码里没有小节');
+  const lines=obj.lines.map(l=>({sec:l.sec||'',lyric:l.lyric!==false,bars:(l.bars||[]).map(parseBar)})).filter(l=>l.bars.length);
+  const time=/^\d+\/\d+$/.test(obj.time||'')?obj.time:'4/4';
+  const kk=obj.key!=null?PC[normChord(String(obj.key)).replace(/m$/,'')]:null;
+  return{title:obj.title||'',artist:obj.artist||'',key:kk==null?null:kk,capo:Number.isInteger(obj.capo)?obj.capo:0,time,bpm:+obj.bpm>30?Math.round(+obj.bpm):72,lines};
+}
+function chartChords(chart){const out=[];chart.lines.forEach(l=>l.bars.forEach(b=>b.chords.forEach(c=>{if(!out.includes(c))out.push(c)})));return out}
+function chartToCode(chart){
+  const bar=b=>[b.open?'|:':'',b.ending?b.ending+'.':'',...(b.fill&&!b.chords.length?['-']:b.chords),b.close?':|':''].filter(Boolean).join(' ');
+  return JSON.stringify({title:chart.title,artist:chart.artist,key:chart.key==null?null:KEYS[chart.key],capo:chart.capo,time:chart.time,bpm:chart.bpm,
+    lines:chart.lines.map(l=>Object.assign(l.sec?{sec:l.sec}:{},l.lyric?{}:{lyric:false},{bars:l.bars.map(bar)}))});
+}
+// Expand repeats and 1st/2nd endings into the order the song is actually played.
+function playOrder(chart){
+  const flat=[];chart.lines.forEach((l,li)=>l.bars.forEach((b,bi)=>flat.push({li,bi,b})));
+  const out=[];let i=0,start=0,pass=1,guard=0;const jumped=new Set();
+  while(i<flat.length&&guard++<5000){
+    const f=flat[i];
+    if(f.b.open&&!jumped.has(i)&&pass===1)start=i;
+    if(f.b.ending&&f.b.ending!==pass){i++;continue}
+    out.push(f);
+    if(f.b.close&&!jumped.has(i)){jumped.add(i);pass=2;i=start;continue}
+    if(f.b.ending===2||(!f.b.ending&&pass===2&&f.b.open))pass=1;
+    i++;
+  }
+  return out;
+}
+function beatsPerBar(chart){return +(chart.time||'4/4').split('/')[0]||4}
+function timeline(s){
+  const ch=s.chart;const bpb=beatsPerBar(ch);const ord=playOrder(ch);const ev=[];let t=0,prev=null;const sh=songShift(s);
+  ord.forEach((o,k)=>{
+    const n=o.b.chords.length;
+    if(!n)ev.push({t,d:bpb,li:o.li,bi:o.bi,k,chord:prev,fill:true});
+    else o.b.chords.forEach(c=>{const p=pressName(c,sh,s.simplify);ev.push({t,d:bpb/n,li:o.li,bi:o.bi,k,chord:p,sheet:c});prev=p;t+=bpb/n});
+    if(!n)t+=bpb;
+  });
+  return{ev,total:t,bpb};
+}
+
+/* layout detection: find each TAB staff and the jianpu/lyric band under it */
+function stitch(pages,W){
+  W=Math.min(W,pages[0].width);const hs=pages.map(c=>Math.round(c.height*W/c.width));
+  const c=mkCanvas(W,hs.reduce((a,b)=>a+b,0));const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);
+  let y=0;pages.forEach((p,i)=>{g.drawImage(p,0,y,W,hs[i]);y+=hs[i]});return c;
+}
+function detectSystems(c){
+  const w=c.width,h=c.height;const g=c.getContext('2d',{willReadFrequently:true});const d=g.getImageData(0,0,w,h).data;
+  const x0=Math.round(w*0.04),x1=Math.round(w*0.96),span=x1-x0;
+  const dark=new Float32Array(h),ink=new Uint8Array(h);
+  for(let y=0;y<h;y++){let n=0,m=0;const o=y*w;for(let x=x0;x<x1;x++){const i=(o+x)*4;const L=(d[i]+d[i+1]+d[i+2])/3;if(L<215)n++;if(L<170)m++}dark[y]=n/span;ink[y]=m>2?1:0}
+  // staff lines: rows dark across most of the width
+  const lines=[];for(let y=0;y<h;y++){if(dark[y]>0.6){let e=y;while(e+1<h&&dark[e+1]>0.6)e++;lines.push((y+e)/2);y=e}}
+  if(lines.length<4)return[];
+  const gaps=[];for(let i=1;i<lines.length;i++)gaps.push(lines[i]-lines[i-1]);
+  const small=gaps.filter(x=>x<h*0.03).sort((a,b)=>a-b);const sp=small.length?small[Math.floor(small.length/2)]:12;
+  const staffs=[];let cur=[lines[0]];
+  for(let i=1;i<lines.length;i++){if(lines[i]-lines[i-1]<sp*1.8)cur.push(lines[i]);else{staffs.push(cur);cur=[lines[i]]}}staffs.push(cur);
+  const st=staffs.filter(s=>s.length>=4).map(s=>({top:Math.floor(s[0]),bottom:Math.ceil(s[s.length-1])}));
+  return st.map((s,i)=>{
+    const sh=s.bottom-s.top;const limit=i+1<st.length?st[i+1].top:h;
+    let y=s.bottom+1;while(y<limit&&ink[y])y++;            // stems hanging from the staff
+    // ink runs between this staff and the next
+    const runs=[];for(;y<limit;y++){if(ink[y]){let e=y;while(e+1<limit&&(ink[e+1]||ink[e+2]||ink[e+3]))e++;runs.push([y,e]);y=e}}
+    if(i+1<st.length)while(runs.length&&runs[runs.length-1][0]>limit-sh*1.7)runs.pop();
+    if(!runs.length)return{top:s.top,bottom:s.bottom,strip:null};
+    const a=Math.max(0,runs[0][0]-6),b=Math.min(h,runs[runs.length-1][1]+6);
+    return{top:s.top,bottom:s.bottom,strip:b-a>8?[a,b]:null};
+  });
+}
+function cutStrip(c,a,b){const o=mkCanvas(c.width,b-a);o.getContext('2d').drawImage(c,0,a,c.width,b-a,0,0,c.width,b-a);return o}
 
 /* ---------- editor ---------- */
 let ed=null;
@@ -870,7 +1100,8 @@ function openEditor(song){
   $('#edTidy').checked=song?song.tidy!==false:true;
   $('#edDel').hidden=!song;$('#edConfirm').hidden=true;$('#edMsg').textContent='';$('#edSave').disabled=false;
   $('#edChords').value=(song?.chords||[]).join(' ');renderCPrev();
-  $('#edAutoRow').hidden=!sampleApi;$('#edAuto').disabled=false;
+  $('#edAutoRow').hidden=!sampleApi;$('#edAuto').disabled=false;$('#edAutoChart').hidden=!sampleApi;$('#edAutoChart').disabled=false;
+  $('#edCode').value=song&&song.chart?chartToCode(song.chart):'';$('#edLib').value='';$('#edCodeMsg').textContent=song&&song.chart?chartSummary(song.chart):'';
   renderEdItems();openSheet('editor');
 }
 function renderCPrev(){
@@ -914,6 +1145,37 @@ $('#edAuto').addEventListener('click',async()=>{
   }
   btn.disabled=false;
 });
+function chartSummary(ch){const bars=ch.lines.reduce((a,l)=>a+l.bars.length,0);return `和弦谱：${ch.lines.length} 行、${bars} 小节，${ch.time} 拍，♩=${ch.bpm}。`}
+function applyChartToForm(ch,fillMeta){
+  if(fillMeta||!$('#edTitle').value.trim())$('#edTitle').value=ch.title||$('#edTitle').value;
+  if(fillMeta||!$('#edArtist').value.trim())$('#edArtist').value=ch.artist||$('#edArtist').value;
+  if(ch.key!=null)$('#edKey').value=String(ch.key);$('#edCapo').value=ch.capo||0;
+  $('#edChords').value=chartChords(ch).join(' ');renderCPrev();
+}
+(function(){const sel=$('#edLib');const o=document.createElement('option');o.value='';o.textContent='从内置谱库选一首（可选）';sel.appendChild(o);
+  CHART_LIB.forEach((c,i)=>{const x=document.createElement('option');x.value=i;x.textContent=c.title+' — '+c.artist;sel.appendChild(x)})})();
+$('#edLib').addEventListener('change',e=>{if(e.target.value==='')return;const ch=parseChart(CHART_LIB[+e.target.value]);$('#edCode').value=chartToCode(ch);applyChartToForm(ch,true);$('#edCodeMsg').textContent=chartSummary(ch)});
+$('#edCode').addEventListener('input',()=>{const t=$('#edCode').value.trim();if(!t){$('#edCodeMsg').textContent='';return}
+  try{const ch=parseChart(t);applyChartToForm(ch,false);$('#edCodeMsg').textContent=chartSummary(ch)}catch(e){$('#edCodeMsg').textContent='谱子代码没读懂：'+(e.message||'格式不对')+'。确认整段都复制进来了。'}});
+$('#edAutoChart').addEventListener('click',async()=>{
+  if(!sampleApi)return;if(!ed.items.length){$('#edCodeMsg').textContent='先选好谱子图片。';return}
+  const btn=$('#edAutoChart');btn.disabled=true;$('#edCodeMsg').textContent='Claude 正在逐小节读和弦，大概半分钟…';
+  try{
+    const max=Math.max(1,sampleImgs.maxCount||4);const blobs=[];
+    for(const it of ed.items.slice(0,max)){let b=it.blob?await compress(it.blob):(it.ref?await Store.getImage(it.ref):null);if(b)blobs.push(b)}
+    const prompt='这些图片是同一首歌的吉他谱截图，按顺序排列，可能带手机界面，相邻截图可能有重复部分（重复的只算一次）。'+
+      '请把谱子的和弦结构转成 JSON，不要包含任何歌词、简谱数字或旋律。规则：'+
+      '每一行谱（一个六线谱系统）是 lines 里的一项；bars 是这一行的小节，每个小节写这小节里的和弦名，用空格分隔，如 "Cmaj7 D6add9"；'+
+      '没有和弦图的小节（过门、延续）写 "-"；反复开始记号在小节前加 "|:"，反复结束在小节后加 ":|"；第一/第二房子在小节前加 "1." 或 "2."；'+
+      '如果这一行下面没有歌词（只有休止或前奏、间奏），加 "lyric":false；段落开头可以加 "sec"，如 "前奏" "主歌" "副歌" "间奏" "尾奏"。'+
+      '同时给出 key（谱上 1=G 就写 "G"）、capo（变调夹品数，没有写 0）、time（如 "4/4"）、bpm（谱上没写就估计）。'+
+      '只返回 JSON：{"key":"G","capo":0,"time":"4/4","bpm":72,"lines":[{"sec":"前奏","lyric":false,"bars":["Cmaj7 D6add9","-"]}]}';
+    const out=await sampleApi.json(prompt,{images:blobs,modelTier:'complex'});
+    const ch=parseChart(Object.assign({title:$('#edTitle').value.trim(),artist:$('#edArtist').value.trim()},out));
+    $('#edCode').value=chartToCode(ch);applyChartToForm(ch,false);$('#edCodeMsg').textContent=chartSummary(ch)+'对照原图核对一下，不对可以直接改代码。'+(ed.items.length>max?`（只看了前 ${max} 页）`:'');
+  }catch(e){$('#edCodeMsg').textContent=e&&e.code==='not_granted'?'没有允许 Claude 读取图片。':e&&e.code==='rate_limited'?'用得太频繁了，等一会儿再试。':'这次没识别出来，可以再试一次。'}
+  btn.disabled=false;
+});
 function renderEdItems(){
   const box=$('#edItems');box.innerHTML='';const tidy=$('#edTidy').checked;
   ed.items.forEach((it,i)=>{
@@ -944,7 +1206,9 @@ drop.addEventListener('dragleave',()=>drop.classList.remove('over'));
 drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over');addFiles(Array.from(e.dataTransfer.files||[]))});
 document.addEventListener('paste',e=>{if($('#sh-editor').hidden)return;const fs=Array.from(e.clipboardData?.items||[]).filter(i=>i.kind==='file').map(i=>i.getAsFile());if(fs.length){e.preventDefault();addFiles(fs)}});
 $('#edSave').addEventListener('click',async()=>{
-  if(!ed.items.length){$('#edMsg').textContent='还没有选图片，先点「选择图片」。';return}
+  let chart=null;const code=$('#edCode').value.trim();
+  if(code){try{chart=parseChart(code)}catch(e){$('#edMsg').textContent='谱子代码格式不对，先改好或清空再保存。';return}}
+  if(!ed.items.length&&!chart){$('#edMsg').textContent='还没有选图片，先点「选择图片」。';return}
   const btn=$('#edSave');btn.disabled=true;const msg=$('#edMsg');
   try{
     const tidy=$('#edTidy').checked;
@@ -953,24 +1217,29 @@ $('#edSave').addEventListener('click',async()=>{
       if(it.blob){msg.textContent=`正在保存原图 ${origIds.length+1}/${ed.items.length}…`;const b=await compress(it.blob);const id=uid();await Store.putImage(id,b);it.ref=id;it.blob=null}
       origIds.push(it.ref);
     }
-    let images=origIds.slice(),dups=0;
-    if(tidy){
+    let images=origIds.slice(),dups=0,strips=[],stripNote='';
+    if(ed.items.length&&(tidy||chart)){
       const r=await tidyPages(ed.items,i=>{msg.textContent=`正在整理第 ${i+1}/${ed.items.length} 页…`});
-      dups=r.dups;images=[];
-      for(const c of r.pages){const b=await toBlob(c);const id=uid();await Store.putImage(id,b);images.push(id)}
+      if(tidy){dups=r.dups;images=[];for(const c of r.pages){const b=await toBlob(c);const id=uid();await Store.putImage(id,b);images.push(id)}}
+      if(chart){
+        msg.textContent='正在切出每行的歌词条…';
+        const big=stitch(r.pages,1000);const sys=detectSystems(big);
+        if(sys.length===chart.lines.length){for(const x of sys){if(x.strip){const b=await toBlob(cutStrip(big,x.strip[0],x.strip[1]),.85);const id=uid();await Store.putImage(id,b);strips.push(id)}else strips.push(null)}}
+        else stripNote=`（图里找到 ${sys.length} 行谱，和弦谱有 ${chart.lines.length} 行，对不上，这次先不放歌词条）`;
+      }
     }
     const old=ed.song||{};
-    const keep=new Set([...images,...origIds]);
-    for(const id of new Set([...(old.images||[]),...(old.originals||[])]))if(!keep.has(id))await Store.delImage(id).catch(()=>{});
+    const keep=new Set([...images,...origIds,...strips.filter(Boolean)]);
+    for(const id of new Set([...(old.images||[]),...(old.originals||[]),...(old.strips||[]).filter(Boolean)]))if(!keep.has(id))await Store.delImage(id).catch(()=>{});
     const kv=$('#edKey').value;
     const song=Object.assign({},old,{id:old.id||uid(),title:$('#edTitle').value.trim()||'未命名曲谱',artist:$('#edArtist').value.trim(),
       capo:+$('#edCapo').value,key:kv===''?null:+kv,images,originals:origIds,adj:ed.items.map(it=>({t:it.adj.t,b:it.adj.b})),tidy,
-      chords:splitChords($('#edChords').value),speed:old.speed||5,width:old.width||70,bpm:old.bpm||0,createdAt:old.createdAt||Date.now(),updatedAt:Date.now()});
+      chords:splitChords($('#edChords').value),chart,strips,speed:old.speed||5,width:old.width||0,bpm:old.bpm||(chart?chart.bpm:0),createdAt:old.createdAt||Date.now(),updatedAt:Date.now()});
     delete song.demo;
     if(old.capo!==song.capo&&old.playCapo==null)delete song.playCapo;
     await Store.putSong(song);
     closeSheets();await loadSongs();
-    const note=tidy?(dups?`，整理时去掉了 ${dups} 处截图重复`:'，谱面已整理'):'';
+    const note=(chart?'，已排成和弦谱':tidy?(dups?`，整理时去掉了 ${dups} 处截图重复`:'，谱面已整理'):'')+stripNote;
     if(!$('#player').hidden)openPlayer(song);
     toast('已保存「'+song.title+'」'+note);
   }catch(e){msg.textContent='保存失败：设备存储空间可能不够了，或有图片读不出来。删掉几首不用的谱再试。';btn.disabled=false}
@@ -979,7 +1248,7 @@ $('#edDel').addEventListener('click',()=>{$('#edConfirm').hidden=false});
 $('#edDelNo').addEventListener('click',()=>{$('#edConfirm').hidden=true});
 $('#edDelYes').addEventListener('click',async()=>{
   const s=ed.song;if(!s)return;
-  for(const r of new Set([...(s.images||[]),...(s.originals||[])]))await Store.delImage(r).catch(()=>{});
+  for(const r of new Set([...(s.images||[]),...(s.originals||[]),...(s.strips||[]).filter(Boolean)]))await Store.delImage(r).catch(()=>{});
   await Store.delSong(s.id).catch(()=>{});
   closeSheets();
   if(!$('#player').hidden)closePlayer();else loadSongs();
