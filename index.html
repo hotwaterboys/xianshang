@@ -239,6 +239,15 @@ input[type=range]{accent-color:var(--accent);width:130px}
 .cbar{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 6px 6px;min-height:96px;display:flex;justify-content:space-around;align-items:flex-end;gap:2px;cursor:pointer;transition:background .15s,border-color .15s}
 .cbar.now{background:var(--accent-soft);border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}
 .cbar.played{opacity:.55}
+.cbar{flex-direction:column;align-items:stretch;justify-content:flex-end}
+.cchords{display:flex;justify-content:space-around;align-items:flex-end;gap:2px}
+.hand{width:100%;height:50px;display:block;margin-top:2px}
+.hand .tl{stroke:var(--line);stroke-width:.8;vector-effect:non-scaling-stroke}
+.hand text{fill:var(--ink);font-size:9px;text-anchor:middle;font-family:var(--ui)}
+.hand .sm{stroke:var(--ink);stroke-width:1.4;fill:none;vector-effect:non-scaling-stroke}
+.hand .xm{stroke:var(--ink);stroke-width:1.6;vector-effect:non-scaling-stroke}
+.hand .st.hit .xm{stroke:var(--warn);stroke-width:2.6}
+.hand .st.hit .sm{stroke:var(--warn)}
 .cc{display:grid;justify-items:center;gap:0;min-width:0}
 .cc svg{width:46px;height:57px}
 .cc svg .g{stroke:var(--muted)}.cc svg .nut{stroke:var(--ink)}.cc svg .dot{fill:var(--ink)}.cc svg text{fill:var(--muted);font-size:11px}.cc svg .mk{fill:none;stroke:var(--muted);stroke-width:1.4}
@@ -361,6 +370,7 @@ input[type=range]{accent-color:var(--accent);width:130px}
     <label class="grp" style="padding-right:10px"><span class="lbl">谱宽</span><input id="wRange" type="range" min="35" max="100" step="5" aria-label="谱子宽度"></label>
     <button id="bTop">回到开头</button>
     <button id="bView" hidden>看原图</button>
+    <button id="bDemo" aria-pressed="false">示范音</button>
     <button data-open="key" id="bKey">调 · 变调夹</button>
     <button data-open="metro" id="bMetro"><i class="beat-dot" id="barDot"></i><span id="bMetroTxt">节拍器</span></button>
     <button data-open="tuner">调音</button>
@@ -614,7 +624,7 @@ function openPlayer(s){
   const pages=$('#pages');pages.innerHTML='';
   s.images.forEach((ref,i)=>{const im=document.createElement('img');im.alt='第 '+(i+1)+' 页';im.draggable=false;pages.appendChild(im);imageURL(ref).then(u=>{if(u)im.src=u})});
   cpos=0;cev=-1;tl=null;
-  $('#bView').hidden=!s.chart;
+  $('#bView').hidden=!s.chart;$('#bDemo').hidden=!s.chart;
   if(s.chart){$('#bView').textContent=chartMode()?'看原图':'看和弦谱';renderChart()}
   $('#chart').hidden=!chartMode();pages.hidden=chartMode();
   setWidth(s.width||(chartMode()?92:70),false);renderSpeed();renderRail();
@@ -760,7 +770,8 @@ function renderChart(){
     h+=`<div class="cbars" style="grid-template-columns:repeat(${Math.max(4,l.bars.length)},minmax(0,1fr))">`;
     l.bars.forEach((b,bi)=>{
       h+=`<div class="cbar" data-li="${li}" data-bi="${bi}">${b.open?'<span class="rep o">‖:</span>':''}${b.close?'<span class="rep c">:‖</span>':''}${b.ending?`<span class="endg">${b.ending}.</span>`:''}`+
-        (b.chords.length?b.chords.map(c=>ccHTML(pressName(c,sh,s.simplify))).join(''):'<span class="cfill">过门 · 延续</span>')+`</div>`;
+        `<div class="cchords">`+(b.chords.length?b.chords.map(c=>ccHTML(pressName(c,sh,s.simplify))).join(''):'<span class="cfill">过门 · 延续</span>')+`</div>`+
+        (b.chords.length&&(l.pick||ch.pick)?handSVG(l.pick||ch.pick,b.chords.map(c=>pressName(c,sh,s.simplify))):'')+`</div>`;
     });
     h+='</div>';
     if(l.lyric&&s.strips&&s.strips[li])h+=`<img class="cstrip" alt="" data-ref="${esc(s.strips[li])}">`;
@@ -768,6 +779,24 @@ function renderChart(){
   });
   box.querySelectorAll('.cstrip').forEach(im=>imageURL(im.dataset.ref).then(u=>{if(u)im.src=u}));
   cev=-1;chartUpdate(true);
+}
+function rootString(shape){for(let i=0;i<6;i++)if(shape[i]>=0)return 6-i;return 5}
+function stepStrings(step,chordName){
+  const c=chordName&&findChord(chordName);const shape=c?c.shape:[0,0,0,0,0,0];
+  if(step.rest)return[];
+  if(step.strum)return step.strum==='D'?[6,5,4,3,2,1].filter(n=>shape[6-n]>=0):[1,2,3,4];
+  const out=step.strings.slice();if(step.root)out.unshift(rootString(shape));return out.filter(n=>shape[6-n]>=0||!c);
+}
+function handSVG(pat,chords){
+  const n=pat.steps.length,W=120,H=48,y=k=>6+(k-1)*7,x=k=>8+(k+.5)*((W-12)/n);
+  let g='';for(let k=1;k<=6;k++)g+=`<line class="tl" x1="4" x2="${W-2}" y1="${y(k)}" y2="${y(k)}"/>`;
+  pat.steps.forEach((st,k)=>{
+    const ch=chords[Math.min(chords.length-1,Math.floor(k*chords.length/n))];let m='';
+    if(st.strum){const d=st.strum==='D';const y1=d?y(1)-2:y(6)+2,y2=d?y(6)+2:y(1)-2;m=`<line class="sm" x1="${x(k)}" x2="${x(k)}" y1="${d?y(1):y(6)}" y2="${d?y(6)+3:y(1)-3}"/><path class="sm" d="M${x(k)-3} ${d?y(6):y(1)} L${x(k)} ${d?y(6)+4:y(1)-4} L${x(k)+3} ${d?y(6):y(1)}"/>`}
+    else stepStrings(st,ch).forEach(sn=>{const X=x(k),Y=y(sn);m+=`<path class="xm" d="M${X-1.3} ${Y-2.4}L${X+1.3} ${Y+2.4}M${X+1.3} ${Y-2.4}L${X-1.3} ${Y+2.4}"/>`});
+    g+=`<g class="st" data-k="${k}">${m}</g>`;
+  });
+  return `<svg class="hand" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="右手拨弦：${esc(pat.src)}">${g}</svg>`;
 }
 function evAt(pos){const ev=tl.ev;let i=Math.max(0,cev);if(ev[i]&&ev[i].t>pos)i=0;while(i<ev.length-1&&ev[i+1].t<=pos)i++;return i}
 function chartUpdate(force){
@@ -793,12 +822,26 @@ function ctick(t){
   const dt=Math.min(0.1,(t-last)/1000);last=t;sessSec+=dt;
   cpos=cbase+(t-cstart)/1000*(s.bpm||72)/60;
   if(cpos>=tl.total){cpos=tl.total;finish();cpos=0;cev=-1;return}
-  chartUpdate(false);raf=requestAnimationFrame(ctick);
+  chartUpdate(false);handStep();raf=requestAnimationFrame(ctick);
 }
+let lastStep='',demoOn=ls.get('demo',false);
+function handStep(){
+  const s=state.current;const e=tl&&tl.ev[cev];if(!e){return}
+  const line=s.chart.lines[e.li];const pat=line&&(line.pick||s.chart.pick);const bar=$(`#chart .cbar[data-li="${e.li}"][data-bi="${e.bi}"]`);
+  if(!pat||!bar||e.fill)return;
+  const first=tl.ev.find(x=>x.k===e.k);const local=cpos-first.t;const n=pat.steps.length;const k=Math.min(n-1,Math.floor(local/(tl.bpb/n)));
+  const key=e.k+':'+k;if(key===lastStep)return;lastStep=key;
+  $$('#chart .st.hit').forEach(x=>x.classList.remove('hit'));const g=bar.querySelector(`.st[data-k="${k}"]`);if(g)g.classList.add('hit');
+  if(demoOn&&playing){const c=findChord(e.chord);if(!c)return;const st=pat.steps[k];const strs=stepStrings(st,e.chord);
+    const ctx=audio();const t0=ctx.currentTime+0.01;const gap=st.strum?0.012:0.004;
+    strs.forEach((sn,j)=>{const i=6-sn;const f=c.shape[i]<0?0:c.shape[i];pluck(OPEN[i]*Math.pow(2,f/12),t0+j*gap,st.strum?.16:.26,1.8)})}
+}
+$('#bDemo').addEventListener('click',()=>{demoOn=!demoOn;ls.set('demo',demoOn);$('#bDemo').setAttribute('aria-pressed',String(demoOn));if(demoOn)audio()});
+$('#bDemo').setAttribute('aria-pressed',String(demoOn));
 function seekBar(li,bi){
   if(!tl)return;const cands=tl.ev.filter(e=>e.li===li&&e.bi===bi);if(!cands.length)return;
   const after=cands.find(e=>e.t>=cpos-0.01)||cands[0];
-  cpos=after.t;cbase=cpos;cstart=performance.now();cev=-1;chartUpdate(true);
+  cpos=after.t;cbase=cpos;cstart=performance.now();cev=-1;lastStep='';chartUpdate(true);handStep();
 }
 $('#bView').addEventListener('click',()=>{const s=state.current;if(!s||!s.chart)return;pause();s.view=chartMode()?'image':'chart';saveCurrentSoon();openPlayer(s)});
 
@@ -978,7 +1021,7 @@ async function tidyPages(items,onStep){
 /* ---------- chord charts: format, library, layout detection ---------- */
 // Built-in chart library: chord progressions only (no lyrics, no melody).
 const CHART_LIB=[
- {title:'斑马斑马',artist:'宋冬野',key:'G',capo:0,time:'4/4',bpm:72,lines:[
+ {title:'斑马斑马',artist:'宋冬野',key:'G',capo:0,time:'4/4',bpm:72,pick:'R 4 12 3 R 4 12 4',lines:[
   {sec:'前奏',lyric:false,bars:['Cmaj7 D6add9','B7 Em','Cmaj7 D6add9','-']},
   {sec:'主歌',bars:['|: Cmaj7 D6add9','Bm7 Em','Cmaj7 D6add9','G']},
   {bars:['Cmaj7 D6add9','Bm7 Em','Cmaj7 D6add9','1. Em :|']},
@@ -1006,19 +1049,31 @@ function parseBar(str){
   if(!b.chords.length)b.fill=true;
   return b;
 }
+// Right-hand pattern for one bar: R = the chord's bass string, digits = strings plucked together (1 = thinnest),
+// D / U = strum down / up, - = let it ring.
+function parsePattern(str){
+  if(!str||typeof str!=='string')return null;
+  const st=str.trim().split(/\s+/).filter(Boolean).map(t=>{
+    t=t.toUpperCase().replace('↓','D').replace('↑','U');
+    if(t==='D'||t==='U')return{strum:t};if(t==='-'||t==='0')return{rest:true};
+    const m=t.match(/^(R?)([1-6]*)$/);if(!m||(!m[1]&&!m[2]))return null;
+    return{root:!!m[1],strings:m[2].split('').map(Number)};
+  });
+  return st.length&&st.every(Boolean)?{src:str.trim(),steps:st}:null;
+}
 function parseChart(obj){
   if(typeof obj==='string'){const t=obj.trim();if(!t)return null;const m=t.match(/\{[\s\S]*\}/);if(!m)throw new Error('没找到谱子代码');obj=JSON.parse(m[0])}
   if(!obj||!Array.isArray(obj.lines)||!obj.lines.length)throw new Error('谱子代码里没有小节');
-  const lines=obj.lines.map(l=>({sec:l.sec||'',lyric:l.lyric!==false,bars:(l.bars||[]).map(parseBar)})).filter(l=>l.bars.length);
+  const lines=obj.lines.map(l=>({sec:l.sec||'',lyric:l.lyric!==false,pick:parsePattern(l.pick),bars:(l.bars||[]).map(parseBar)})).filter(l=>l.bars.length);
   const time=/^\d+\/\d+$/.test(obj.time||'')?obj.time:'4/4';
   const kk=obj.key!=null?PC[normChord(String(obj.key)).replace(/m$/,'')]:null;
-  return{title:obj.title||'',artist:obj.artist||'',key:kk==null?null:kk,capo:Number.isInteger(obj.capo)?obj.capo:0,time,bpm:+obj.bpm>30?Math.round(+obj.bpm):72,lines};
+  return{title:obj.title||'',artist:obj.artist||'',key:kk==null?null:kk,capo:Number.isInteger(obj.capo)?obj.capo:0,time,bpm:+obj.bpm>30?Math.round(+obj.bpm):72,pick:parsePattern(obj.pick),lines};
 }
 function chartChords(chart){const out=[];chart.lines.forEach(l=>l.bars.forEach(b=>b.chords.forEach(c=>{if(!out.includes(c))out.push(c)})));return out}
 function chartToCode(chart){
   const bar=b=>[b.open?'|:':'',b.ending?b.ending+'.':'',...(b.fill&&!b.chords.length?['-']:b.chords),b.close?':|':''].filter(Boolean).join(' ');
-  return JSON.stringify({title:chart.title,artist:chart.artist,key:chart.key==null?null:KEYS[chart.key],capo:chart.capo,time:chart.time,bpm:chart.bpm,
-    lines:chart.lines.map(l=>Object.assign(l.sec?{sec:l.sec}:{},l.lyric?{}:{lyric:false},{bars:l.bars.map(bar)}))});
+  return JSON.stringify(Object.assign({title:chart.title,artist:chart.artist,key:chart.key==null?null:KEYS[chart.key],capo:chart.capo,time:chart.time,bpm:chart.bpm},chart.pick?{pick:chart.pick.src}:{},
+    {lines:chart.lines.map(l=>Object.assign(l.sec?{sec:l.sec}:{},l.lyric?{}:{lyric:false},l.pick?{pick:l.pick.src}:{},{bars:l.bars.map(bar)}))}));
 }
 // Expand repeats and 1st/2nd endings into the order the song is actually played.
 function playOrder(chart){
